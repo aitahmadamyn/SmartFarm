@@ -3,11 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Sun, Cloud, Moon, Battery, BatteryCharging, BatteryFull, 
   Droplets, Cpu, Activity, Zap, Server, ChevronRight, FileDown, Gauge,
-  Bell, AlertTriangle, AlertCircle, Info
+  Bell, AlertTriangle, AlertCircle, Info, Code, Github, X
 } from 'lucide-react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, AreaChart 
 } from 'recharts';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 // --- Types ---
 type Weather = 'sunny' | 'cloudy' | 'night';
@@ -28,6 +30,107 @@ interface DataPoint {
 }
 
 // --- Utils: Word Generation ---
+const pythonSourceCode = `"""
+SmartFarm : Dashboard IoT & IA (Version Python / Streamlit)
+Lien GitHub: App connecté via intégration GitHub.
+"""
+import streamlit as st
+import pandas as pd
+import numpy as np
+import time
+from datetime import datetime
+
+# --- CONFIGURATION ---
+st.set_page_config(page_title="SmartFarm", page_icon="⚡", layout="wide")
+
+st.title("⚡ SmartFarm : Micro-réseau Intelligent")
+st.markdown("Tableau de bord de supervision IoT & IA (Batteries, Énergie, Eau)")
+
+# --- VARIABLES D'ÉTAT ---
+if 'battery_soc' not in st.session_state:
+    st.session_state.battery_soc = 50.0
+if 'soil_moisture' not in st.session_state:
+    st.session_state.soil_moisture = 60.0
+if 'history' not in st.session_state:
+    st.session_state.history = pd.DataFrame(columns=['time', 'production', 'consumption', 'battery', 'moisture'])
+
+# --- MOCK DATA SENSORS ---
+def get_sensor_data(weather="Soleil", pump_state=0):
+    # Simulation des données capteurs de l'ESP32 via MQTT (mock)
+    if weather == "Soleil": prod = np.random.uniform(80, 100)
+    elif weather == "Nuages": prod = np.random.uniform(20, 35)
+    else: prod = 0
+    base_cons = np.random.uniform(15, 20)
+    pump_cons = (pump_state / 100) * 60
+    return prod, base_cons + pump_cons
+
+# --- INTELLIGENCE ARTIFICIELLE ---
+def ai_decision_matrix(battery, moisture, thresholds):
+    # Détection demande
+    demand = "Normale"
+    if moisture < thresholds['low']: demand = "Élevée"
+    elif moisture > thresholds['high']: demand = "Faible"
+    
+    # Matrice
+    pump = 0
+    decision_text = "Pompage arrêté (Batterie Faible)"
+    if battery > 70 and demand == "Normale":
+        pump = 100
+        decision_text = "Pompage normal (Surplus)"
+    elif battery > 30 and demand == "Élevée":
+        pump = 50
+        decision_text = "Pompage réduit (Stress Hydrique)"
+    elif battery < 30 and demand == "Faible":
+        pump = 50
+        decision_text = "Pompage autorisé (Maintien)"
+        
+    return pump, decision_text
+
+# --- DASHBOARD UI ---
+st.sidebar.header("Paramètres (Simulation)")
+weather = st.sidebar.selectbox("Météo Actuelle", ["Soleil", "Nuages", "Nuit"])
+threshold_low = st.sidebar.slider("Seuil Humidité Bas", 20, 50, 40)
+threshold_high = st.sidebar.slider("Seuil Humidité Haut", 50, 90, 70)
+
+# Exécution Cycle EMS
+prod, cons = get_sensor_data(weather, 0)
+pump_flow, ai_text = ai_decision_matrix(st.session_state.battery_soc, st.session_state.soil_moisture, {'low': threshold_low, 'high': threshold_high})
+
+# Mise à jour avec la pompe allumée/éteinte
+prod, cons = get_sensor_data(weather, pump_flow)
+
+# Update Stockage et Humidité
+surplus = prod - cons
+st.session_state.battery_soc = max(0, min(100, st.session_state.battery_soc + (surplus * 0.1)))
+
+evap = 2.0 if weather == "Soleil" else 0.5
+st.session_state.soil_moisture = max(0, min(100, st.session_state.soil_moisture - evap + (pump_flow/100 * 4)))
+
+# Update History
+new_data = pd.DataFrame([{
+    'time': datetime.now().strftime("%H:%M:%S"),
+    'production': prod, 'consumption': cons, 
+    'battery': st.session_state.battery_soc,
+    'moisture': st.session_state.soil_moisture
+}])
+st.session_state.history = pd.concat([st.session_state.history, new_data]).tail(20)
+
+# Affichage Métriques
+col1, col2, col3, col4 = st.columns(4)
+col1.metric("Production (kW)", f"{prod:.1f}")
+col2.metric("Conso. Totale (kW)", f"{cons:.1f}")
+col3.metric("Batterie SoC (%)", f"{st.session_state.battery_soc:.1f}")
+col4.metric("Humidité Sol (%)", f"{st.session_state.soil_moisture:.1f}")
+
+st.subheader("Décision IA (Energy Management System)")
+st.info(f"**Action Pompe :** {pump_flow} L/min ➔ {ai_text}")
+
+st.subheader("Dynamique du Micro-Réseau")
+if not st.session_state.history.empty:
+    chart_data = st.session_state.history.set_index('time')[['production', 'consumption']]
+    st.line_chart(chart_data)
+`;
+
 const downloadWordReport = () => {
   const reportHTML = `
     <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
@@ -50,11 +153,11 @@ const downloadWordReport = () => {
     </head>
     <body>
       <h1>RAPPORT TECHNIQUE COMPLET</h1>
-      <div class="subtitle">Projet SmartNexus-MA : Micro-réseau Intelligent et Nexus Eau-Énergie</div>
+      <div class="subtitle">Projet SmartFarm : Micro-réseau Intelligent et Nexus Eau-Énergie</div>
       
       <h2>1. Introduction et Problématique</h2>
       <p>Dans un contexte mondial marqué par le changement climatique, le stress hydrique (particulièrement en Afrique et au Maroc) et la hausse des coûts de l'énergie, le secteur agricole fait face à un défi majeur : comment irriguer efficacement tout en minimisant l'empreinte carbone et les coûts opérationnels ?</p>
-      <p>Le projet <b>SmartNexus-MA</b> répond à cette problématique en proposant un micro-réseau décentralisé (Microgrid) couplé à un système de pompage d'eau intelligent. L'objectif est de créer un "Nexus Eau-Énergie" 100% autonome, alimenté par l'énergie solaire, et piloté par l'Intelligence Artificielle (IA) pour optimiser chaque goutte d'eau et chaque watt d'énergie.</p>
+      <p>Le projet <b>SmartFarm</b> répond à cette problématique en proposant un micro-réseau décentralisé (Microgrid) couplé à un système de pompage d'eau intelligent. L'objectif est de créer un "Nexus Eau-Énergie" 100% autonome, alimenté par l'énergie solaire, et piloté par l'Intelligence Artificielle (IA) pour optimiser chaque goutte d'eau et chaque watt d'énergie.</p>
 
       <h2>2. Architecture Globale du Système</h2>
       <p>Le système repose sur une architecture IoT (Internet of Things) complète, allant du capteur physique jusqu'au tableau de bord cloud.</p>
@@ -119,7 +222,7 @@ const downloadWordReport = () => {
 
       <h2>6. Résultats Attendus et Impact</h2>
       <div class="highlight">
-        <p>Le déploiement de SmartNexus-MA permet d'atteindre des résultats mesurables sur trois axes :</p>
+        <p>Le déploiement de SmartFarm permet d'atteindre des résultats mesurables sur trois axes :</p>
         <ul>
           <li><b>Économie d'Eau :</b> Réduction du gaspillage de 30 à 40% grâce à l'irrigation de précision basée sur l'humidité réelle et l'évapotranspiration.</li>
           <li><b>Durée de vie des Batteries :</b> Prolongation de la durée de vie des batteries Li-ion de 20 à 30% en évitant les cycles de décharge profonde grâce à la prédiction LSTM.</li>
@@ -128,7 +231,7 @@ const downloadWordReport = () => {
       </div>
 
       <h2>7. Conclusion</h2>
-      <p>Le projet SmartNexus-MA démontre que la convergence entre l'Internet des Objets (IoT) et l'Intelligence Artificielle (IA) offre une solution robuste et scalable aux défis du Nexus Eau-Énergie. En automatisant entièrement la prise de décision, de la prédiction météorologique jusqu'au contrôle du débit d'eau, ce système représente l'avenir de l'agriculture intelligente et de la gestion décentralisée de l'énergie verte.</p>
+      <p>Le projet SmartFarm démontre que la convergence entre l'Internet des Objets (IoT) et l'Intelligence Artificielle (IA) offre une solution robuste et scalable aux défis du Nexus Eau-Énergie. En automatisant entièrement la prise de décision, de la prédiction météorologique jusqu'au contrôle du débit d'eau, ce système représente l'avenir de l'agriculture intelligente et de la gestion décentralisée de l'énergie verte.</p>
     </body>
     </html>
   `;
@@ -137,7 +240,7 @@ const downloadWordReport = () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'Rapport_Integration_IA_SmartNexus.doc';
+  link.download = 'Rapport_Integration_IA_SmartFarm.doc';
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -169,7 +272,7 @@ function Hero() {
         </motion.div>
         
         <h1 className="text-4xl md:text-6xl font-bold text-white mb-6 tracking-tight leading-tight">
-          SmartNexus-MA <br/>
+          SmartFarm <br/>
           <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-blue-500">
             L'IA au service de l'Énergie et de l'Eau
           </span>
@@ -743,6 +846,8 @@ function HardwareGallery() {
 }
 
 export default function App() {
+  const [showCode, setShowCode] = useState(false);
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-50 font-sans selection:bg-emerald-500/30">
       {/* Navigation Bar */}
@@ -752,12 +857,12 @@ export default function App() {
             <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-blue-500 flex items-center justify-center">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            <span className="font-bold text-lg tracking-tight">SmartNexus-MA</span>
+            <span className="font-bold text-lg tracking-tight">SmartFarm</span>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-400">
             <a href="#" className="text-white">Aperçu</a>
             <a href="#" className="hover:text-white transition-colors">Simulation</a>
-            <a href="#" className="hover:text-white transition-colors">Matériel</a>
+            <button onClick={() => setShowCode(true)} className="hover:text-white transition-colors flex items-center gap-1"><Github className="w-4 h-4"/>Code Python</button>
           </div>
         </div>
       </nav>
@@ -781,12 +886,71 @@ export default function App() {
             >
               <FileDown className="w-5 h-5" /> Télécharger le Rapport IA (Word)
             </button>
-            <button className="inline-flex items-center justify-center gap-2 bg-zinc-800 text-white border border-zinc-700 px-6 py-3 rounded-full font-semibold hover:bg-zinc-700 transition-colors">
-              Voir le code source <ChevronRight className="w-4 h-4" />
+            <button 
+              onClick={() => setShowCode(true)}
+              className="inline-flex items-center justify-center gap-2 bg-zinc-800 text-white border border-zinc-700 px-6 py-3 rounded-full font-semibold hover:bg-zinc-700 transition-colors"
+            >
+              <Code className="w-4 h-4" /> Voir le code Python (GitHub)
             </button>
           </div>
         </div>
       </main>
+
+      {/* Code Modal */}
+      <AnimatePresence>
+        {showCode && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 md:p-8"
+          >
+            <motion.div
+              initial={{ y: 50, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 20, opacity: 0, scale: 0.95 }}
+              className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-4xl max-h-full flex flex-col overflow-hidden shadow-2xl"
+            >
+              <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800 bg-zinc-900/50">
+                <div className="flex items-center gap-3">
+                  <Github className="w-5 h-5 text-emerald-400" />
+                  <h3 className="font-semibold text-white">dashboard.py (Code Source Physique)</h3>
+                </div>
+                <button
+                  onClick={() => setShowCode(false)}
+                  className="p-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg text-zinc-400 hover:text-white transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-auto bg-[#1E1E1E]">
+                <SyntaxHighlighter
+                  language="python"
+                  style={vscDarkPlus}
+                  customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.875rem', background: 'transparent' }}
+                  showLineNumbers={true}
+                >
+                  {pythonSourceCode}
+                </SyntaxHighlighter>
+              </div>
+              
+              <div className="p-4 border-t border-zinc-800 bg-zinc-900/80 flex justify-between items-center text-xs text-zinc-400">
+                <span>Code pour l'exécution avec Streamlit. Ce code simule le dashboard sur votre Raspberry Pi / Serveur Python.</span>
+                <button 
+                  onClick={() => {
+                     navigator.clipboard.writeText(pythonSourceCode);
+                     alert("Code copié dans le presse-papiers!");
+                  }}
+                  className="px-4 py-2 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 rounded-lg font-medium transition-colors"
+                >
+                  Copier le code
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
